@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Pacientes</title>
+    <title>Gestión de Pacientes - Medicina Estética</title>
     <style>
         body {
             font-family: sans-serif;
@@ -16,7 +16,7 @@
             display: block;
             margin-bottom: 5px;
         }
-        input[type="text"], input[type="number"], input[type="email"], textarea, select {
+        input[type="text"], input[type="number"], input[type="email"], textarea, select, input[type="file"] {
             width: calc(100% - 12px);
             padding: 8px;
             margin-bottom: 10px;
@@ -101,22 +101,44 @@
             background-color: DodgerBlue !important;
             color: #ffffff !important;
         }
+        .imagen-preview {
+            max-width: 100px;
+            max-height: 100px;
+            margin-right: 10px;
+            border: 1px solid #ccc;
+        }
+        #visualizacion-consentimiento {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+        }
+        #firma-digital-simulada {
+            border: 1px dashed #aaa;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        #firma-digital-simulada.firmado {
+            border-color: green;
+            background-color: #e6ffe6;
+        }
     </style>
 </head>
 <body>
 
-    <h1>Gestión Básica de Pacientes</h1>
+    <h1>Gestión de Pacientes - Medicina Estética</h1>
 
     <section id="registro-paciente">
         <h2>Registro de Paciente</h2>
         <button id="nuevo-paciente-btn">➕ Nuevo Paciente</button>
         <button id="buscar-paciente-btn">🔍 Buscar Paciente</button>
         <label for="nombre">Nombre:</label>
-        <input type="text" id="nombre">
+        <input type="text" id="nombre" required>
         <label for="telefono">Teléfono:</label>
         <input type="text" id="telefono">
         <label for="edad">Edad:</label>
-        <input type="number" id="edad">
+        <input type="number" id="edad" min="0">
         <label for="correo">Correo:</label>
         <input type="email" id="correo">
         <label for="alergias">Alergias:</label>
@@ -150,19 +172,26 @@
         <label for="plantilla-tratamiento">Tipo de Tratamiento:</label>
         <input type="text" id="plantilla-tratamiento-input">
         <div id="plantilla-tratamiento-autocomplete" class="autocomplete-items"></div>
-        <button id="generar-consentimiento-btn">Generar Consentimiento</button>
-        <div id="visualizacion-consentimiento"></div>
-        <button id="firmar-consentimiento-btn">Firmar Consentimiento (Simulado)</button>
+        <div id="visualizacion-consentimiento">
+            <p>Yo, <strong id="consentimiento-nombre-paciente-texto">[Nombre del Paciente]</strong>, doy mi consentimiento para el tratamiento de <strong id="consentimiento-tratamiento-texto">[Tipo de Tratamiento]</strong>.</p>
+            <div id="firma-digital-simulada">
+                <p>Firma Digital del Paciente (Simulada)</p>
+                <button id="simular-firma-btn">Simular Firma</button>
+            </div>
+            <p id="fecha-firma"></p>
+        </div>
         <button id="guardar-consentimiento-btn">Guardar Consentimiento</button>
     </section>
 
     <section id="carga-imagenes">
         <h2>Carga de Imágenes</h2>
         <label for="imagen-antes">Foto Antes:</label>
-        <input type="file" id="imagen-antes">
+        <input type="file" id="imagen-antes" accept="image/*">
+        <div id="preview-antes"></div>
         <label for="imagen-despues">Foto Después:</label>
-        <input type="file" id="imagen-despues">
-        <button id="cargar-imagenes-btn">Cargar Imágenes</button>
+        <input type="file" id="imagen-despues" accept="image/*">
+        <div id="preview-despues"></div>
+        <button id="cargar-imagenes-btn">Guardar Imágenes</button>
         <div id="imagenes-cargadas"></div>
     </section>
 
@@ -211,6 +240,7 @@
         // --- Estado de la Aplicación ---
         let pacientes = getLocalData('pacientes');
         let servicios = getLocalData('servicios');
+        let historialTratamientos = getLocalData('historialTratamientos');
 
         // --- Elementos del DOM ---
         const nombreInput = document.getElementById('nombre');
@@ -234,10 +264,20 @@
         const ciNombrePacienteInput = document.getElementById('ci-nombre-paciente');
         const plantillaTratamientoInput = document.getElementById('plantilla-tratamiento-input');
         const plantillaTratamientoAutocompleteDiv = document.getElementById('plantilla-tratamiento-autocomplete');
-        const generarConsentimientoBtn = document.getElementById('generar-consentimiento-btn');
         const visualizacionConsentimientoDiv = document.getElementById('visualizacion-consentimiento');
-        const firmarConsentimientoBtn = document.getElementById('firmar-consentimiento-btn');
+        const consentimientoNombrePacienteTexto = document.getElementById('consentimiento-nombre-paciente-texto');
+        const consentimientoTratamientoTexto = document.getElementById('consentimiento-tratamiento-texto');
+        const simularFirmaBtn = document.getElementById('simular-firma-btn');
+        const firmaDigitalSimuladaDiv = document.getElementById('firma-digital-simulada');
+        const fechaFirmaParrafo = document.getElementById('fecha-firma');
         const guardarConsentimientoBtn = document.getElementById('guardar-consentimiento-btn');
+
+        const imagenAntesInput = document.getElementById('imagen-antes');
+        const imagenDespuesInput = document.getElementById('imagen-despues');
+        const previewAntesDiv = document.getElementById('preview-antes');
+        const previewDespuesDiv = document.getElementById('preview-despues');
+        const cargarImagenesBtn = document.getElementById('cargar-imagenes-btn');
+        const imagenesCargadasDiv = document.getElementById('imagenes-cargadas');
 
         const nuevoServicioInput = document.getElementById('nuevo-servicio-input');
         const nuevoServicioAutocompleteDiv = document.getElementById('nuevo-servicio-autocomplete');
@@ -258,8 +298,9 @@
         const cerrarModalHistorialBtn = document.getElementById('cerrar-modal-historial');
 
         let currentPacienteId = null;
+        let pacienteActual = null; // Para tener el paciente cargado globalmente
 
-        // --- Funciones para Administrar Servicios ---
+        // --- Funciones de Administración de Servicios ---
         const renderServicios = () => {
             listaServiciosDiv.innerHTML = '';
             servicios.forEach((servicio, index) => {
@@ -317,68 +358,7 @@
         };
 
         // --- Funciones para Gestión de Pacientes ---
-        const guardarPaciente = () => {
-            const paciente = {
-                id: currentPacienteId || Date.now(),
-                nombre: nombreInput.value,
-                telefono: telefonoInput.value,
-                edad: edadInput.value,
-                correo: correoInput.value,
-                alergias: alergiasTextarea.value,
-                antecedentes: antecedentesTextarea.value
-            };
-
-            if (currentPacienteId) {
-                const index = pacientes.findIndex(p => p.id === currentPacienteId);
-                if (index > -1) {
-                    pacientes[index] = paciente;
-                }
-            } else {
-                pacientes.push(paciente);
-            }
-
-            setLocalData('pacientes', pacientes);
-            currentPacienteId = null;
-            alert('Paciente guardado.');
-            // Auto-rellenar campos
-            hcNombrePacienteInput.value = paciente.nombre;
-            ciNombrePacienteInput.value = paciente.nombre;
-            // Limpiar formulario después de guardar si es un nuevo paciente
-            limpiarFormularioPaciente();
-        };
-
-        const limpiarFormularioPaciente = () => {
-            nombreInput.value = '';
-            telefonoInput.value = '';
-            edadInput.value = '';
-            correoInput.value = '';
-            alergiasTextarea.value = '';
-            antecedentesTextarea.value = '';
-            currentPacienteId = null;
-        };
-
-        const buscarPacientePorNombreTelefono = (query) => {
-            return pacientes.filter(p =>
-                p.nombre.toLowerCase().includes(query.toLowerCase()) ||
-                p.telefono.includes(query)
-            );
-        };
-
-        const mostrarResultadosBusqueda = (resultados) => {
-            buscarPacienteResultadosDiv.innerHTML = '';
-            if (resultados.length > 0) {
-                resultados.forEach(paciente => {
-                    const div = document.createElement('div');
-                    div.textContent = `<span class="math-inline">\{paciente\.nombre\} \(</span>{paciente.telefono})`;
-                    div.addEventListener('click', () => {
-                        cargarDatosPaciente(paciente);
-                        buscarPacienteModal.style.display = 'none';
-                    });
-                    buscarPacienteResultadosDiv.appendChild(div);
-                });
-            } else {
-                buscarPacienteResultadosDiv.textContent = 'No se encontraron pacientes.';
-            }
-        };
-
-        const cargarDatosPaciente = (pac
+        const guardarPaciente = ()
+         
+                
+           
