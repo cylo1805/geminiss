@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Pacientes</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+        }
+        h2 {
+            margin-top: 30px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"], input[type="number"], input[type="email"], textarea, select {
+            width: calc(100% - 12px);
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+        .paciente-info {
+            border: 1px solid #eee;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .servicio-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px dotted #ccc;
+        }
+        .servicio-item button {
+            padding: 5px 10px;
+            font-size: 0.9em;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .historial-tratamientos-item {
+            border-bottom: 1px solid #eee;
+            padding: 5px 0;
+        }
+        .autocomplete-items {
+            position: absolute;
+            border: 1px solid #d4d4d4;
+            border-bottom: none;
+            border-top: none;
+            z-index: 99;
+            top: 100%;
+            left: 0;
+            right: 0;
+        }
+        .autocomplete-items div {
+            padding: 10px;
+            cursor: pointer;
+            background-color: #fff;
+            border-bottom: 1px solid #d4d4d4;
+        }
+        .autocomplete-items div:hover {
+            background-color: #e9e9e9;
+        }
+        .autocomplete-active {
+            background-color: DodgerBlue !important;
+            color: #ffffff !important;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Gestión Básica de Pacientes</h1>
+
+    <section id="registro-paciente">
+        <h2>Registro de Paciente</h2>
+        <button id="nuevo-paciente-btn">➕ Nuevo Paciente</button>
+        <button id="buscar-paciente-btn">🔍 Buscar Paciente</button>
+        <label for="nombre">Nombre:</label>
+        <input type="text" id="nombre">
+        <label for="telefono">Teléfono:</label>
+        <input type="text" id="telefono">
+        <label for="edad">Edad:</label>
+        <input type="number" id="edad">
+        <label for="correo">Correo:</label>
+        <input type="email" id="correo">
+        <label for="alergias">Alergias:</label>
+        <textarea id="alergias"></textarea>
+        <label for="antecedentes">Antecedentes:</label>
+        <textarea id="antecedentes"></textarea>
+        <button id="guardar-paciente-btn">Guardar Paciente</button>
+        <button id="ver-historial-btn">Ver Historial de Tratamientos</button>
+    </section>
+
+    <section id="historia-clinica">
+        <h2>Generación de Historia Clínica</h2>
+        <label for="hc-nombre-paciente">Nombre del Paciente:</label>
+        <input type="text" id="hc-nombre-paciente" readonly>
+        <label for="motivo-consulta">Motivo de Consulta:</label>
+        <textarea id="motivo-consulta"></textarea>
+        <label for="antecedentes-medicos">Antecedentes Médicos Relevantes:</label>
+        <textarea id="antecedentes-medicos"></textarea>
+        <label for="diagnostico">Diagnóstico/Valoración Inicial:</label>
+        <textarea id="diagnostico"></textarea>
+        <label for="tratamiento-sugerido">Tratamiento Sugerido:</label>
+        <input type="text" id="tratamiento-sugerido-input">
+        <div id="tratamiento-sugerido-autocomplete" class="autocomplete-items"></div>
+        <button id="guardar-historia-btn">Guardar Historia Clínica</button>
+    </section>
+
+    <section id="consentimiento-informado">
+        <h2>Consentimiento Informado Digital</h2>
+        <label for="ci-nombre-paciente">Nombre del Paciente:</label>
+        <input type="text" id="ci-nombre-paciente" readonly>
+        <label for="plantilla-tratamiento">Tipo de Tratamiento:</label>
+        <input type="text" id="plantilla-tratamiento-input">
+        <div id="plantilla-tratamiento-autocomplete" class="autocomplete-items"></div>
+        <button id="generar-consentimiento-btn">Generar Consentimiento</button>
+        <div id="visualizacion-consentimiento"></div>
+        <button id="firmar-consentimiento-btn">Firmar Consentimiento (Simulado)</button>
+        <button id="guardar-consentimiento-btn">Guardar Consentimiento</button>
+    </section>
+
+    <section id="carga-imagenes">
+        <h2>Carga de Imágenes</h2>
+        <label for="imagen-antes">Foto Antes:</label>
+        <input type="file" id="imagen-antes">
+        <label for="imagen-despues">Foto Después:</label>
+        <input type="file" id="imagen-despues">
+        <button id="cargar-imagenes-btn">Cargar Imágenes</button>
+        <div id="imagenes-cargadas"></div>
+    </section>
+
+    <section id="administrar-servicios">
+        <h2>Administrar Servicios</h2>
+        <label for="nuevo-servicio">Nuevo Servicio:</label>
+        <input type="text" id="nuevo-servicio-input">
+        <div id="nuevo-servicio-autocomplete" class="autocomplete-items"></div>
+        <button id="agregar-servicio-btn">Agregar Servicio</button>
+        <button id="ver-servicios-registrados-btn">Ver Servicios Registrados</button>
+    </section>
+
+    <div id="servicios-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="cerrar-modal-servicios">&times;</span>
+            <h3>Servicios Registrados</h3>
+            <div id="lista-servicios"></div>
+        </div>
+    </div>
+
+    <div id="buscar-paciente-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="cerrar-modal-buscar-paciente">&times;</span>
+            <h3>Buscar Paciente</h3>
+            <label for="buscar-paciente-input">Nombre o Teléfono:</label>
+            <input type="text" id="buscar-paciente-input">
+            <div id="buscar-paciente-resultados"></div>
+        </div>
+    </div>
+
+    <div id="historial-tratamientos-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="cerrar-modal-historial">&times;</span>
+            <h3>Historial de Tratamientos del Paciente</h3>
+            <div id="lista-historial-tratamientos"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- Funciones de Utilidad para LocalStorage ---
+        const getLocalData = (key) => JSON.parse(localStorage.getItem(key) || '[]');
+        const setLocalData = (key, data) => localStorage.setItem(key, JSON.stringify(data));
+        const getSingleLocalData = (key) => JSON.parse(localStorage.getItem(key) || 'null');
+        const setSingleLocalData = (key, data) => localStorage.setItem(key, JSON.stringify(data));
+
+        // --- Estado de la Aplicación ---
+        let pacientes = getLocalData('pacientes');
+        let servicios = getLocalData('servicios');
+
+        // --- Elementos del DOM ---
+        const nombreInput = document.getElementById('nombre');
+        const telefonoInput = document.getElementById('telefono');
+        const edadInput = document.getElementById('edad');
+        const correoInput = document.getElementById('correo');
+        const alergiasTextarea = document.getElementById('alergias');
+        const antecedentesTextarea = document.getElementById('antecedentes');
+        const guardarPacienteBtn = document.getElementById('guardar-paciente-btn');
+        const nuevoPacienteBtn = document.getElementById('nuevo-paciente-btn');
+        const buscarPacienteBtn = document.getElementById('buscar-paciente-btn');
+
+        const hcNombrePacienteInput = document.getElementById('hc-nombre-paciente');
+        const motivoConsultaTextarea = document.getElementById('motivo-consulta');
+        const antecedentesMedicosTextarea = document.getElementById('antecedentes-medicos');
+        const diagnosticoTextarea = document.getElementById('diagnostico');
+        const tratamientoSugeridoInput = document.getElementById('tratamiento-sugerido-input');
+        const tratamientoSugeridoAutocompleteDiv = document.getElementById('tratamiento-sugerido-autocomplete');
+        const guardarHistoriaBtn = document.getElementById('guardar-historia-btn');
+
+        const ciNombrePacienteInput = document.getElementById('ci-nombre-paciente');
+        const plantillaTratamientoInput = document.getElementById('plantilla-tratamiento-input');
+        const plantillaTratamientoAutocompleteDiv = document.getElementById('plantilla-tratamiento-autocomplete');
+        const generarConsentimientoBtn = document.getElementById('generar-consentimiento-btn');
+        const visualizacionConsentimientoDiv = document.getElementById('visualizacion-consentimiento');
+        const firmarConsentimientoBtn = document.getElementById('firmar-consentimiento-btn');
+        const guardarConsentimientoBtn = document.getElementById('guardar-consentimiento-btn');
+
+        const nuevoServicioInput = document.getElementById('nuevo-servicio-input');
+        const nuevoServicioAutocompleteDiv = document.getElementById('nuevo-servicio-autocomplete');
+        const agregarServicioBtn = document.getElementById('agregar-servicio-btn');
+        const verServiciosRegistradosBtn = document.getElementById('ver-servicios-registrados-btn');
+        const serviciosModal = document.getElementById('servicios-modal');
+        const listaServiciosDiv = document.getElementById('lista-servicios');
+        const cerrarModalServiciosBtn = document.getElementById('cerrar-modal-servicios');
+
+        const buscarPacienteModal = document.getElementById('buscar-paciente-modal');
+        const buscarPacienteInput = document.getElementById('buscar-paciente-input');
+        const buscarPacienteResultadosDiv = document.getElementById('buscar-paciente-resultados');
+        const cerrarModalBuscarPacienteBtn = document.getElementById('cerrar-modal-buscar-paciente');
+
+        const verHistorialBtn = document.getElementById('ver-historial-btn');
+        const historialTratamientosModal = document.getElementById('historial-tratamientos-modal');
+        const listaHistorialTratamientosDiv = document.getElementById('lista-historial-tratamientos');
+        const cerrarModalHistorialBtn = document.getElementById('cerrar-modal-historial');
+
+        let currentPacienteId = null;
+
+        // --- Funciones para Administrar Servicios ---
+        const renderServicios = () => {
+            listaServiciosDiv.innerHTML = '';
+            servicios.forEach((servicio, index) => {
+                const servicioItem = document.createElement('div');
+                servicioItem.classList.add('servicio-item');
+                const nombreSpan = document.createElement('span');
+                nombreSpan.textContent = servicio;
+                const editarBtn = document.createElement('button');
+                editarBtn.textContent = 'Editar';
+                editarBtn.addEventListener('click', () => {
+                    const nuevoNombre = prompt('Editar servicio:', servicio);
+                    if (nuevoNombre && nuevoNombre !== servicio) {
+                        servicios[index] = nuevoNombre;
+                        setLocalData('servicios', servicios);
+                        renderServicios();
+                        updateServiciosAutocomplete();
+                    }
+                });
+                const eliminarBtn = document.createElement('button');
+                eliminarBtn.textContent = 'Eliminar';
+                eliminarBtn.addEventListener('click', () => {
+                    if (confirm(`¿Seguro que deseas eliminar "${servicio}"?`)) {
+                        servicios.splice(index, 1);
+                        setLocalData('servicios', servicios);
+                        renderServicios();
+                        updateServiciosAutocomplete();
+                    }
+                });
+                servicioItem.appendChild(nombreSpan);
+                servicioItem.appendChild(editarBtn);
+                servicioItem.appendChild(eliminarBtn);
+                listaServiciosDiv.appendChild(servicioItem);
+            });
+        };
+
+        const agregarServicio = () => {
+            const nuevoServicio = nuevoServicioInput.value.trim();
+            if (nuevoServicio && !servicios.includes(nuevoServicio)) {
+                servicios.push(nuevoServicio);
+                setLocalData('servicios', servicios);
+                nuevoServicioInput.value = '';
+                renderServicios();
+                updateServiciosAutocomplete();
+            } else if (servicios.includes(nuevoServicio)) {
+                alert('Este servicio ya existe.');
+            } else {
+                alert('Por favor, ingrese un nombre de servicio.');
+            }
+        };
+
+        const updateServiciosAutocomplete = () => {
+            autocomplete(tratamientoSugeridoInput, servicios);
+            autocomplete(plantillaTratamientoInput, servicios);
+            autocomplete(nuevoServicioInput, servicios);
+        };
+
+        // --- Funciones para Gestión de Pacientes ---
+        const guardarPaciente = () => {
+            const paciente = {
+                id: currentPacienteId || Date.now(),
+                nombre: nombreInput.value,
+                telefono: telefonoInput.value,
+                edad: edadInput.value,
+                correo: correoInput.value,
+                alergias: alergiasTextarea.value,
+                antecedentes: antecedentesTextarea.value
+            };
+
+            if (currentPacienteId) {
+                const index = pacientes.findIndex(p => p.id === currentPacienteId);
+                if (index > -1) {
+                    pacientes[index] = paciente;
+                }
+            } else {
+                pacientes.push(paciente);
+            }
+
+            setLocalData('pacientes', pacientes);
+            currentPacienteId = null;
+            alert('Paciente guardado.');
+            // Auto-rellenar campos
+            hcNombrePacienteInput.value = paciente.nombre;
+            ciNombrePacienteInput.value = paciente.nombre;
+            // Limpiar formulario después de guardar si es un nuevo paciente
+            limpiarFormularioPaciente();
+        };
+
+        const limpiarFormularioPaciente = () => {
+            nombreInput.value = '';
+            telefonoInput.value = '';
+            edadInput.value = '';
+            correoInput.value = '';
+            alergiasTextarea.value = '';
+            antecedentesTextarea.value = '';
+            currentPacienteId = null;
+        };
+
+        const buscarPacientePorNombreTelefono = (query) => {
+            return pacientes.filter(p =>
+                p.nombre.toLowerCase().includes(query.toLowerCase()) ||
+                p.telefono.includes(query)
+            );
+        };
+
+        const mostrarResultadosBusqueda = (resultados) => {
+            buscarPacienteResultadosDiv.innerHTML = '';
+            if (resultados.length > 0) {
+                resultados.forEach(paciente => {
+                    const div = document.createElement('div');
+                    div.textContent = `<span class="math-inline">\{paciente\.nombre\} \(</span>{paciente.telefono})`;
+                    div.addEventListener('click', () => {
+                        cargarDatosPaciente(paciente);
+                        buscarPacienteModal.style.display = 'none';
+                    });
+                    buscarPacienteResultadosDiv.appendChild(div);
+                });
+            } else {
+                buscarPacienteResultadosDiv.textContent = 'No se encontraron pacientes.';
+            }
+        };
+
+        const cargarDatosPaciente = (pac
